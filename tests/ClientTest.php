@@ -32,4 +32,19 @@ class ClientTest extends TestCase
         self::assertSame('GET', $mock->getLastRequest()->getMethod());
         self::assertSame('Bearer test', $mock->getLastRequest()->getHeaderLine('Authorization'));
     }
+
+    public function testPatchOperationSetsContentTypeAndRemovesMarker(): void
+    {
+        $mock = new MockHandler([new Response(200, [], '{}')]);
+        Client::configure('https://kubernetes.test', ['token' => 'test'], ['handler' => HandlerStack::create($mock)]);
+
+        Client::getInstance()->request('patch', '/api/v1/namespaces/default/configmaps/test', [
+            'json' => ['patchOperation' => 'merge-patch', 'data' => ['key' => 'value']],
+        ]);
+
+        $request = $mock->getLastRequest();
+        self::assertSame('PATCH', $request->getMethod());
+        self::assertSame('application/merge-patch+json', $request->getHeaderLine('Content-Type'));
+        self::assertSame('{"data":{"key":"value"}}', (string) $request->getBody());
+    }
 }
